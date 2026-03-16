@@ -4,12 +4,18 @@
 #include "xil_printf.h"
 #include "xil_cache.h"
 
+#include "xinterrupt_wrap.h"
+
 #include "xaxidma.h"
 #include "xparameters.h"
 
 #define UDP_LISTEN_PORT 9000
 
 #define NUM_TX_BDS 64
+
+// TODO: Update these based on your actual hardware configuration (xparameters.h)
+#define TX_INTR_ID       XPAR_FABRIC_AXIDMA_0_MM2S_INTROUT_INTR
+#define INTC_DEVICE_ID   XPAR_SCUGIC_0_DEVICE_ID
 
 static XAxiDma AxiDma;
 static u8 TxBdSpace[NUM_TX_BDS * sizeof(XAxiDma_Bd)] __attribute__((aligned(XAXIDMA_BD_MINIMUM_ALIGNMENT)));
@@ -63,7 +69,26 @@ static int init_axi_dma(void) {
 }
 
 static int setup_dma_interrupts(void) {
-    // TODO: Connect DMA TX Complete interrupt to the ARM GIC
+    int Status;
+    
+    XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(&AxiDma);
+
+    Status = XSetupInterruptSystem(
+        (void *)TxRingPtr,           // arg: Passed directly to dma_tx_interrupt_handler
+        dma_tx_interrupt_handler,    // IntrHandler: Callback function
+        TX_INTR_ID,                  // IntrId: The hardware IRQ number
+        INTC_DEVICE_ID,              // IntrParent: The Interrupt Controller ID/Base
+        0xA0                         // Priority: 0xA0 is a standard middle priority
+    );
+
+    if (Status != XST_SUCCESS) {
+        xil_printf("Failed to route DMA TX Interrupt to GIC.\r\n");
+        return -1;
+    }
+
+    XAxiDma_BdRingIntEnable(TxRingPtr, XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_ERROR_MASK); 
+
+    xil_printf("DMA TX Interrupts routed and enabled!\r\n");
     return 0;
 }
 
