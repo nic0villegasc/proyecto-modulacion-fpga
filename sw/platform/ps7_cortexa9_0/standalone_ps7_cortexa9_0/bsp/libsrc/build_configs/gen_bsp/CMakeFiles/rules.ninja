@@ -22,7 +22,7 @@ rule CUSTOM_COMMAND
 #############################################
 # Rule for compiling C files.
 
-rule C_COMPILER__xiltimer_
+rule C_COMPILER__lwip220_
   depfile = $DEP_FILE
   deps = gcc
   command = C:\AMDDesignTools\2025.2\Vitis\gnu\aarch32\nt\gcc-arm-none-eabi\bin\arm-none-eabi-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out -c $in
@@ -32,38 +32,11 @@ rule C_COMPILER__xiltimer_
 #############################################
 # Rule for linking C static library.
 
-rule C_STATIC_LIBRARY_LINKER__xiltimer_
-  command = cmd.exe /C "$PRE_LINK && C:\AMDDesignTools\2025.2\tps\win64\cmake-3.24.2\bin\cmake.exe -E rm -f $TARGET_FILE && arm-none-eabi-ar qc $TARGET_FILE $LINK_FLAGS $in && C:\AMDDesignTools\2025.2\Vitis\gnu\aarch32\nt\gcc-arm-none-eabi\bin\arm-none-eabi-ranlib.exe $TARGET_FILE && $POST_BUILD"
+rule C_STATIC_LIBRARY_LINKER__lwip220_
+  command = cmd.exe /C "$PRE_LINK && C:\AMDDesignTools\2025.2\tps\win64\cmake-3.24.2\bin\cmake.exe -E rm -f $TARGET_FILE && arm-none-eabi-ar qc $TARGET_FILE $LINK_FLAGS @$RSP_FILE && C:\AMDDesignTools\2025.2\Vitis\gnu\aarch32\nt\gcc-arm-none-eabi\bin\arm-none-eabi-ranlib.exe $TARGET_FILE && $POST_BUILD"
   description = Linking C static library $TARGET_FILE
-  restat = $RESTAT
-
-
-#############################################
-# Rule for compiling ASM files.
-
-rule ASM_COMPILER__xilstandalone_
-  depfile = $DEP_FILE
-  deps = gcc
-  command = C:\AMDDesignTools\2025.2\Vitis\gnu\aarch32\nt\gcc-arm-none-eabi\bin\arm-none-eabi-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out -c $in
-  description = Building ASM object $out
-
-
-#############################################
-# Rule for compiling C files.
-
-rule C_COMPILER__xilstandalone_
-  depfile = $DEP_FILE
-  deps = gcc
-  command = C:\AMDDesignTools\2025.2\Vitis\gnu\aarch32\nt\gcc-arm-none-eabi\bin\arm-none-eabi-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out -c $in
-  description = Building C object $out
-
-
-#############################################
-# Rule for linking C static library.
-
-rule C_STATIC_LIBRARY_LINKER__xilstandalone_
-  command = cmd.exe /C "$PRE_LINK && C:\AMDDesignTools\2025.2\tps\win64\cmake-3.24.2\bin\cmake.exe -E rm -f $TARGET_FILE && arm-none-eabi-ar qc $TARGET_FILE $LINK_FLAGS $in && C:\AMDDesignTools\2025.2\Vitis\gnu\aarch32\nt\gcc-arm-none-eabi\bin\arm-none-eabi-ranlib.exe $TARGET_FILE && $POST_BUILD"
-  description = Linking C static library $TARGET_FILE
+  rspfile = $RSP_FILE
+  rspfile_content = $in $LINK_PATH $LINK_LIBRARIES
   restat = $RESTAT
 
 
