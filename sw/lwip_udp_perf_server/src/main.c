@@ -13,7 +13,7 @@
 // Include our new bridge module
 #include "udp_dma_bridge.h" 
 
-#if LWIP_DHCP==1
+#if 0
 #include "lwip/dhcp.h"
 extern volatile int dhcp_timoutcntr;
 #endif
@@ -68,7 +68,7 @@ int main(void)
 	netif_set_default(netif);
 	netif_set_up(netif);
 
-#if (LWIP_DHCP==1)
+#if (0)
 	dhcp_start(netif);
 	dhcp_timoutcntr = 240;
 	while (((netif->ip_addr.addr) == 0) && (dhcp_timoutcntr > 0)) {

@@ -26,3 +26,20 @@ status = platform.build()
 
 comp.build()
 
+status = platform.build()
+
+comp = client.get_component(name="lwip_udp_perf_server")
+comp.build()
+
+status = platform.build()
+
+comp.build()
+
+status = platform.build()
+
+comp.build()
+
+status = platform.build()
+
+comp.build()
+

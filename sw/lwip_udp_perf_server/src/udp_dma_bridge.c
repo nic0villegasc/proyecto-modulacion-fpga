@@ -34,6 +34,7 @@ void dma_tx_interrupt_handler(void *CallbackRef) {
  */
 static void udp_receive_callback(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
 {
+    xil_printf("Received UDP! %s\n\r", p->payload);
     if (p != NULL) {
         // TODO: Map pbuf->payload to AXI DMA Scatter-Gather BD Ring here.
         // TODO: Call Xil_DCacheFlushRange() on the payload.
