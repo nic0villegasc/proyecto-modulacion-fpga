@@ -27,3 +27,5 @@ status = domain.set_config(option = "lib", param = "lwip220_n_rx_descriptors", v
 
 status = platform.build()
 
+comp = client.create_app_component(name="app_component",platform = "$COMPONENT_LOCATION/../platform/export/platform/platform.xpfm",domain = "standalone_ps7_cortexa9_0")
+
