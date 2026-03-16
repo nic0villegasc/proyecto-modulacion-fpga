@@ -93,9 +93,43 @@ static int setup_dma_interrupts(void) {
 }
 
 void dma_tx_interrupt_handler(void *CallbackRef) {
-    // TODO: Acknowledge interrupt
-    // TODO: Check which BDs finished
-    // TODO: Call pbuf_free() on the completed payloads!
+    XAxiDma_BdRing *TxRingPtr = (XAxiDma_BdRing *)CallbackRef;
+    XAxiDma_Bd *BdSetPtr;
+    XAxiDma_Bd *CurBd;
+    struct pbuf *p;
+    u32 IrqStatus;
+    int NumBd;
+    int i;
+
+    IrqStatus = XAxiDma_BdRingGetIrq(TxRingPtr);
+    XAxiDma_BdRingAckIrq(TxRingPtr, IrqStatus);
+
+    if (IrqStatus & XAXIDMA_IRQ_IOC_MASK) {
+        
+        NumBd = XAxiDma_BdRingFromHw(TxRingPtr, XAXIDMA_ALL_BDS, &BdSetPtr);
+        
+        if (NumBd > 0) {
+            CurBd = BdSetPtr;
+            
+            for (i = 0; i < NumBd; i++) {
+                
+                p = (struct pbuf *)XAxiDma_BdGetId(CurBd);
+                
+                if (p != NULL) {
+                    pbuf_free(p);
+                }
+
+                CurBd = XAxiDma_BdRingNext(TxRingPtr, CurBd);
+            }
+
+            XAxiDma_BdRingFree(TxRingPtr, NumBd, BdSetPtr);
+        }
+    }
+
+    if (IrqStatus & XAXIDMA_IRQ_ERROR_MASK) {
+        xil_printf("DMA TX Error! Hardware halted.\r\n");
+        // In a production system, you would trigger a DMA reset here.
+    }
 }
 
 static void udp_receive_callback(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
