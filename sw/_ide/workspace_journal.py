@@ -11,3 +11,19 @@ domain = platform.get_domain(name="standalone_ps7_cortexa9_0")
 
 status = domain.set_lib(lib_name="lwip220", path="C:\AMDDesignTools\2025.2\Vitis\data\embeddedsw\ThirdParty\sw_services\lwip220_v1_3")
 
+status = domain.set_config(option = "lib", param = "XILTIMER_en_interval_timer", value = "true", lib_name="xiltimer")
+
+status = domain.set_config(option = "lib", param = "lwip220_dhcp", value = "true", lib_name="lwip220")
+
+status = domain.set_config(option = "lib", param = "lwip220_lwip_dhcp_does_acd_check", value = "true", lib_name="lwip220")
+
+status = domain.set_config(option = "lib", param = "lwip220_memp_n_pbuf", value = "1024", lib_name="lwip220")
+
+status = domain.set_config(option = "lib", param = "lwip220_mem_size", value = "524288", lib_name="lwip220")
+
+status = domain.set_config(option = "lib", param = "lwip220_pbuf_pool_size", value = "16384", lib_name="lwip220")
+
+status = domain.set_config(option = "lib", param = "lwip220_n_rx_descriptors", value = "512", lib_name="lwip220")
+
+status = platform.build()
+

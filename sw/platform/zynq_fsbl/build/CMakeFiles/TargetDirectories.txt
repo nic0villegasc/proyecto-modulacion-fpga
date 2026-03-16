@@ -1,0 +1,4 @@
+C:/Users/nicol/Documents/GitHub/proyecto-modulacion-fpga/sw/platform/zynq_fsbl/build/CMakeFiles/fsbl.elf.dir
+C:/Users/nicol/Documents/GitHub/proyecto-modulacion-fpga/sw/platform/zynq_fsbl/build/CMakeFiles/print_build_info.dir
+C:/Users/nicol/Documents/GitHub/proyecto-modulacion-fpga/sw/platform/zynq_fsbl/build/CMakeFiles/edit_cache.dir
+C:/Users/nicol/Documents/GitHub/proyecto-modulacion-fpga/sw/platform/zynq_fsbl/build/CMakeFiles/rebuild_cache.dir
