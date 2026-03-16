@@ -134,14 +134,61 @@ void dma_tx_interrupt_handler(void *CallbackRef) {
 
 static void udp_receive_callback(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
 {
-    if (p != NULL) {
-        // TODO: Map pbuf->payload to AXI DMA Scatter-Gather BD Ring here.
-        // TODO: Call Xil_DCacheFlushRange() on the payload.
-        // TODO: Tell DMA to start transferring.
-        
-        // TEMPORARY: Freeing pbuf to prevent memory leak during network-only testing.
-        // Once DMA is implemented, REMOVE THIS! The DMA TX Interrupt will free it.
-        pbuf_free(p); 
+    XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(&AxiDma); // Get our TX ring
+    XAxiDma_Bd *BdSetPtr;
+    XAxiDma_Bd *CurBdPtr;
+    struct pbuf *q;
+    int NumBd = 0;
+    int Status;
+    u32 CrBits;
+
+    if (p == NULL) return;
+
+    for (q = p; q != NULL; q = q->next) {
+        NumBd++;
+    }
+
+    Status = XAxiDma_BdRingAlloc(TxRingPtr, NumBd, &BdSetPtr);
+    if (Status != XST_SUCCESS) {
+        xil_printf("Failed to allocate %d BDs. Dropping packet.\r\n", NumBd);
+        pbuf_free(p);
+        return;
+    }
+
+    CurBdPtr = BdSetPtr;
+
+    for (q = p; q != NULL; q = q->next) {
+
+        Xil_DCacheFlushRange((UINTPTR)q->payload, q->len);
+
+        XAxiDma_BdSetBufAddr(CurBdPtr, (UINTPTR)q->payload);
+        XAxiDma_BdSetLength(CurBdPtr, q->len, TxRingPtr->MaxTransferLen); 
+
+        // Set Control Bits (SOF / EOF)
+        CrBits = 0;
+        if (q == p) {
+            CrBits |= XAXIDMA_BD_CTRL_TXSOF_MASK;
+        }
+        if (q->next == NULL) {
+            CrBits |= XAXIDMA_BD_CTRL_TXEOF_MASK;
+        }
+        XAxiDma_BdSetCtrl(CurBdPtr, CrBits);
+
+        if (q == p) {
+            XAxiDma_BdSetId(CurBdPtr, (UINTPTR)p);
+        } else {
+            XAxiDma_BdSetId(CurBdPtr, (UINTPTR)NULL);
+        }
+
+        CurBdPtr = XAxiDma_BdRingNext(TxRingPtr, CurBdPtr);
+    }
+
+    Status = XAxiDma_BdRingToHw(TxRingPtr, NumBd, BdSetPtr);
+    if (Status != XST_SUCCESS) {
+        xil_printf("Failed to commit BDs to HW. Dropping packet.\r\n");
+        XAxiDma_BdRingUnAlloc(TxRingPtr, NumBd, BdSetPtr); 
+        pbuf_free(p);
+        return;
     }
 }
 
