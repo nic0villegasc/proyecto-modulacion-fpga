@@ -94,7 +94,7 @@ static int init_axi_dma_rx(void) {
     Status = XAxiDma_BdRingClone(RxRingPtr, &BdTemplate);
     if (Status != XST_SUCCESS) return -1;
 
-    XAxiDma_BdRingSetCoalesce(RxRingPtr, 10, 255);
+    //XAxiDma_BdRingSetCoalesce(RxRingPtr, 10, 255);
     
     FreeBds = XAxiDma_BdRingGetFreeCnt(RxRingPtr);
 
@@ -151,7 +151,7 @@ void mm2s_interrupt_handler(void *CallbackRef) {
 
     IrqStatus = XAxiDma_BdRingGetIrq(TxRingPtr);
     XAxiDma_BdRingAckIrq(TxRingPtr, IrqStatus);
-
+    
     if (IrqStatus & XAXIDMA_IRQ_IOC_MASK) {
         
         NumBd = XAxiDma_BdRingFromHw(TxRingPtr, XAXIDMA_ALL_BDS, &BdSetPtr);
@@ -187,6 +187,7 @@ void s2mm_interrupt_handler(void *CallbackRef) {
     struct pbuf *p;
     struct pbuf *p_new;
     u32 IrqStatus;
+    int Status;
     int NumBd;
     int i;
     u32 rx_len;
@@ -237,14 +238,27 @@ void s2mm_interrupt_handler(void *CallbackRef) {
                     XAxiDma_BdSetCtrl(CurBdPtr, 0); // Clear control bits
                     XAxiDma_BdSetId(CurBdPtr, (UINTPTR)p_new); // Stash the new ID
                 } else {
-                    xil_printf("Warning: Out of memory, dropping RX BD slot!\r\n");
+                    xil_printf("\r\n!!! CRITICAL: RX OUT OF MEMORY !!! Cannot replenish RX Ring!\r\n\n");
                     XAxiDma_BdSetId(CurBdPtr, (UINTPTR)NULL);
                 }
 
                 CurBdPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(RxRingPtr, CurBdPtr);
             }
 
-            XAxiDma_BdRingToHw(RxRingPtr, NumBd, BdSetPtr);
+            Status = XAxiDma_BdRingFree(RxRingPtr, NumBd, BdSetPtr);
+            if (Status != XST_SUCCESS) {
+                xil_printf("Failed to free RX BDs!\r\n");
+            }
+
+            Status = XAxiDma_BdRingAlloc(RxRingPtr, NumBd, &BdSetPtr);
+            if (Status != XST_SUCCESS) {
+                xil_printf("Failed to alloc RX BDs!\r\n");
+            }
+
+            Status = XAxiDma_BdRingToHw(RxRingPtr, NumBd, BdSetPtr);
+            if (Status != XST_SUCCESS) {
+                xil_printf("Failed to commit RX BDs to HW!\r\n");
+            }
         }
     }
 
@@ -325,13 +339,14 @@ static void udp_receive_callback(void *arg, struct udp_pcb *pcb, struct pbuf *p,
         Xil_DCacheFlushRange((UINTPTR)q->payload, q->len);
 
         XAxiDma_BdSetBufAddr(CurBdPtr, (UINTPTR)q->payload);
-        XAxiDma_BdSetLength(CurBdPtr, q->len, TxRingPtr->MaxTransferLen); // TODO: Verify that TxRingPtr->MaxTransferLen exists
+        XAxiDma_BdSetLength(CurBdPtr, q->len, 0x03FFFFFF); // TODO: Verify that TxRingPtr->MaxTransferLen exists
 
         /* Options:
           - 0x007FFFFF is the standard 23-bit mask (8MB max transfer)
           - 0x03FFFFFF is the standard 26-bit mask (64MB max transfer)
           XAxiDma_BdSetLength(CurBdPtr, q->len, 0x03FFFFFF);
           XAxiDma_BdSetLength(CurBdPtr, q->len, AxiDma.Config.MaxTransferLen);
+          XAxiDma_BdSetLength(CurBdPtr, q->len, TxRingPtr->MaxTransferLen);
         */
 
         // Set Control Bits (SOF / EOF)
