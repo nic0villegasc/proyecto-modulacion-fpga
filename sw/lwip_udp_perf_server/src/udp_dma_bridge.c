@@ -13,8 +13,8 @@
 #define UDP_LISTEN_PORT 9000
 #define MAX_PKT_LEN 1536
 
-#define NUM_TX_BDS 256
-#define NUM_RX_BDS 256
+#define NUM_TX_BDS 1024
+#define NUM_RX_BDS 1024
 
 #define MM2S_INTR_ID       XPAR_FABRIC_AXI_DMA_0_INTR
 #define S2MM_INTR_ID       XPAR_FABRIC_AXI_DMA_0_INTR_1
@@ -93,8 +93,6 @@ static int init_axi_dma_rx(void) {
     XAxiDma_BdClear(&BdTemplate);
     Status = XAxiDma_BdRingClone(RxRingPtr, &BdTemplate);
     if (Status != XST_SUCCESS) return -1;
-
-    //XAxiDma_BdRingSetCoalesce(RxRingPtr, 10, 255);
     
     FreeBds = XAxiDma_BdRingGetFreeCnt(RxRingPtr);
 
@@ -175,7 +173,7 @@ void mm2s_interrupt_handler(void *CallbackRef) {
     }
 
     if (IrqStatus & XAXIDMA_IRQ_ERROR_MASK) {
-        xil_printf("DMA TX Error! Hardware halted.\r\n");
+        // xil_printf("DMA TX Error! Hardware halted.\r\n");
         // In a production system, you would trigger a DMA reset here.
     }
 }
@@ -220,26 +218,43 @@ void s2mm_interrupt_handler(void *CallbackRef) {
                         err_t send_err = udp_sendto(global_udp_pcb, p, &dest_ip, 9001); 
                         if (send_err != ERR_OK) {
                             // ERR_OK is 0. Negative numbers indicate specific lwIP errors (e.g., ERR_MEM, ERR_RTE)
-                            xil_printf("Network Error: udp_sendto failed with code %d\r\n", send_err);
+                            // xil_printf("Network Error: udp_sendto failed with code %d\r\n", send_err);
                         }
                     } else {
-                        xil_printf("Critical Error: global_udp_pcb is NULL! Cannot send packet.\r\n");
+                        // xil_printf("Critical Error: global_udp_pcb is NULL! Cannot send packet.\r\n");
                     }
                     
                     pbuf_free(p);
                 }
                 
                 p_new = pbuf_alloc(PBUF_RAW, MAX_PKT_LEN, PBUF_POOL);
-                if (p_new) {
-                    Xil_DCacheFlushRange((UINTPTR)p_new->payload, p_new->len);
+                if (p_new != NULL) {
+                    rx_len = XAxiDma_BdGetActualLength(CurBdPtr, 0x03FFFFFF);
+                    Xil_DCacheInvalidateRange((UINTPTR)p->payload, rx_len);
+
+                    p->len = rx_len;
+                    p->tot_len = rx_len;
+                    ip_addr_t dest_ip;
+                    inet_aton("192.168.1.125", &dest_ip); 
                     
+                    if (global_udp_pcb != NULL) {
+                        udp_sendto(global_udp_pcb, p, &dest_ip, 9001); 
+                    }
+                    pbuf_free(p);
+
+                    Xil_DCacheFlushRange((UINTPTR)p_new->payload, p_new->len);
                     XAxiDma_BdSetBufAddr(CurBdPtr, (UINTPTR)p_new->payload);
                     XAxiDma_BdSetLength(CurBdPtr, p_new->len, 0x03FFFFFF);
-                    XAxiDma_BdSetCtrl(CurBdPtr, 0); // Clear control bits
-                    XAxiDma_BdSetId(CurBdPtr, (UINTPTR)p_new); // Stash the new ID
+                    XAxiDma_BdSetCtrl(CurBdPtr, 0); 
+                    XAxiDma_BdSetId(CurBdPtr, (UINTPTR)p_new); 
+
                 } else {
-                    xil_printf("\r\n!!! CRITICAL: RX OUT OF MEMORY !!! Cannot replenish RX Ring!\r\n\n");
-                    XAxiDma_BdSetId(CurBdPtr, (UINTPTR)NULL);
+                    // xil_printf("OOM: Dropping packet to protect DMA RX Ring!\r\n");
+                    
+                    Xil_DCacheFlushRange((UINTPTR)p->payload, MAX_PKT_LEN);
+                    XAxiDma_BdSetBufAddr(CurBdPtr, (UINTPTR)p->payload);
+                    XAxiDma_BdSetLength(CurBdPtr, MAX_PKT_LEN, 0x03FFFFFF); 
+                    XAxiDma_BdSetCtrl(CurBdPtr, 0);
                 }
 
                 CurBdPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(RxRingPtr, CurBdPtr);
@@ -247,17 +262,17 @@ void s2mm_interrupt_handler(void *CallbackRef) {
 
             Status = XAxiDma_BdRingFree(RxRingPtr, NumBd, BdSetPtr);
             if (Status != XST_SUCCESS) {
-                xil_printf("Failed to free RX BDs!\r\n");
+               // xil_printf("Failed to free RX BDs!\r\n");
             }
 
             Status = XAxiDma_BdRingAlloc(RxRingPtr, NumBd, &BdSetPtr);
             if (Status != XST_SUCCESS) {
-                xil_printf("Failed to alloc RX BDs!\r\n");
+                // xil_printf("Failed to alloc RX BDs!\r\n");
             }
 
             Status = XAxiDma_BdRingToHw(RxRingPtr, NumBd, BdSetPtr);
             if (Status != XST_SUCCESS) {
-                xil_printf("Failed to commit RX BDs to HW!\r\n");
+                // xil_printf("Failed to commit RX BDs to HW!\r\n");
             }
         }
     }
