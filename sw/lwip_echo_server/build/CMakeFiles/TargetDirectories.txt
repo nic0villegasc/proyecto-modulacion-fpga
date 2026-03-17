@@ -1,4 +1,0 @@
-C:/Users/nicol/Documents/GitHub/proyecto-modulacion-fpga/sw/lwip_echo_server/build/CMakeFiles/lwip_echo_server.elf.dir
-C:/Users/nicol/Documents/GitHub/proyecto-modulacion-fpga/sw/lwip_echo_server/build/CMakeFiles/print_build_info.dir
-C:/Users/nicol/Documents/GitHub/proyecto-modulacion-fpga/sw/lwip_echo_server/build/CMakeFiles/edit_cache.dir
-C:/Users/nicol/Documents/GitHub/proyecto-modulacion-fpga/sw/lwip_echo_server/build/CMakeFiles/rebuild_cache.dir
