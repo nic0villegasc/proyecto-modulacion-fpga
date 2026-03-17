@@ -13,8 +13,8 @@
 #define UDP_LISTEN_PORT 9000
 #define MAX_PKT_LEN 1536
 
-#define NUM_TX_BDS 64
-#define NUM_RX_BDS 64
+#define NUM_TX_BDS 256
+#define NUM_RX_BDS 256
 
 #define MM2S_INTR_ID       XPAR_FABRIC_AXI_DMA_0_INTR
 #define S2MM_INTR_ID       XPAR_FABRIC_AXI_DMA_0_INTR_1
