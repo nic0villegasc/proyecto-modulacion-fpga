@@ -140,7 +140,7 @@ static int init_axi_dma_rx(void) {
     return 0;
 }
 
-void dma_tx_interrupt_handler(void *CallbackRef) {
+void mm2s_interrupt_handler(void *CallbackRef) {
     XAxiDma_BdRing *TxRingPtr = (XAxiDma_BdRing *)CallbackRef;
     XAxiDma_Bd *BdSetPtr;
     XAxiDma_Bd *CurBd;
@@ -180,7 +180,7 @@ void dma_tx_interrupt_handler(void *CallbackRef) {
     }
 }
 
-void dma_rx_interrupt_handler(void *CallbackRef) {
+void s2mm_interrupt_handler(void *CallbackRef) {
     XAxiDma_BdRing *RxRingPtr = (XAxiDma_BdRing *)CallbackRef;
     XAxiDma_Bd *BdSetPtr;
     XAxiDma_Bd *CurBdPtr;
@@ -216,7 +216,13 @@ void dma_rx_interrupt_handler(void *CallbackRef) {
                     inet_aton("192.168.1.125", &dest_ip); 
                     
                     if (global_udp_pcb != NULL) {
-                        udp_sendto(global_udp_pcb, p, &dest_ip, 9001); 
+                        err_t send_err = udp_sendto(global_udp_pcb, p, &dest_ip, 9001); 
+                        if (send_err != ERR_OK) {
+                            // ERR_OK is 0. Negative numbers indicate specific lwIP errors (e.g., ERR_MEM, ERR_RTE)
+                            xil_printf("Network Error: udp_sendto failed with code %d\r\n", send_err);
+                        }
+                    } else {
+                        xil_printf("Critical Error: global_udp_pcb is NULL! Cannot send packet.\r\n");
                     }
                     
                     pbuf_free(p);
@@ -258,7 +264,7 @@ static int setup_dma_interrupts(void) {
     // 1. Setup TX Interrupt
     Status = XSetupInterruptSystem(
         (void *)TxRingPtr,           
-        dma_tx_interrupt_handler,    
+        mm2s_interrupt_handler,    
         MM2S_INTR_ID,                  
         INTC_DEVICE_ID,              
         0xA0                         
@@ -271,7 +277,7 @@ static int setup_dma_interrupts(void) {
     // 2. Setup RX Interrupt
     Status = XSetupInterruptSystem(
         (void *)RxRingPtr,           // Pass the RX ring pointer as the callback ref
-        dma_rx_interrupt_handler,    // The specific RX callback function
+        s2mm_interrupt_handler,    // The specific RX callback function
         S2MM_INTR_ID,                  // The hardware IRQ number for RX
         INTC_DEVICE_ID,              
         0xA0                         
