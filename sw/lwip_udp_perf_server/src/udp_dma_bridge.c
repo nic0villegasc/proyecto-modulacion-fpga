@@ -1,6 +1,7 @@
 #include "udp_dma_bridge.h"
 #include "lwip/udp.h"
 #include "lwip/pbuf.h"
+#include "lwip/inet.h"
 #include "xil_printf.h"
 #include "xil_cache.h"
 
@@ -10,17 +11,21 @@
 #include "xparameters.h"
 
 #define UDP_LISTEN_PORT 9000
+#define MAX_PKT_LEN 1536
 
 #define NUM_TX_BDS 64
+#define NUM_RX_BDS 64
 
 // TODO: Update these based on your actual hardware configuration (xparameters.h)
 #define TX_INTR_ID       XPAR_FABRIC_AXIDMA_0_MM2S_INTROUT_INTR
+#define RX_INTR_ID       XPAR_FABRIC_AXIDMA_0_S2MM_INTROUT_INTR
 #define INTC_DEVICE_ID   XPAR_SCUGIC_0_DEVICE_ID
 
 static XAxiDma AxiDma;
 static u8 TxBdSpace[NUM_TX_BDS * sizeof(XAxiDma_Bd)] __attribute__((aligned(XAXIDMA_BD_MINIMUM_ALIGNMENT)));
+static u8 RxBdSpace[NUM_RX_BDS * sizeof(XAxiDma_Bd)] __attribute__((aligned(XAXIDMA_BD_MINIMUM_ALIGNMENT)));
 
-static int init_axi_dma(void) {
+static int init_axi_dma_tx(void) {
     XAxiDma_Config *Config;
     XAxiDma_BdRing *TxRingPtr;
     XAxiDma_Bd BdTemplate;
@@ -66,6 +71,72 @@ static int init_axi_dma(void) {
 
     xil_printf("AXI DMA SG TX Ring Initialized!\r\n");
     return 0; 
+}
+
+static int init_axi_dma_rx(void) {
+    XAxiDma_BdRing *RxRingPtr = XAxiDma_GetRxRing(&AxiDma); // Get the RX Ring
+    XAxiDma_Bd BdTemplate;
+    XAxiDma_Bd *BdSetPtr;
+    XAxiDma_Bd *CurBdPtr;
+    struct pbuf *p;
+    int Status;
+    int FreeBds;
+    int i;
+
+    XAxiDma_BdRingIntDisable(RxRingPtr, XAXIDMA_IRQ_ALL_MASK);
+    
+    Status = XAxiDma_BdRingCreate(RxRingPtr, (UINTPTR)RxBdSpace, (UINTPTR)RxBdSpace, 
+                                  XAXIDMA_BD_MINIMUM_ALIGNMENT, NUM_RX_BDS);
+    if (Status != XST_SUCCESS) return -1;
+
+    XAxiDma_BdClear(&BdTemplate);
+    Status = XAxiDma_BdRingClone(RxRingPtr, &BdTemplate);
+    if (Status != XST_SUCCESS) return -1;
+
+    XAxiDma_BdRingSetCoalesce(RxRingPtr, 10, 255);
+    
+    FreeBds = XAxiDma_BdRingGetFreeCnt(RxRingPtr);
+
+    Status = XAxiDma_BdRingAlloc(RxRingPtr, FreeBds, &BdSetPtr);
+    if (Status != XST_SUCCESS) {
+        xil_printf("Failed to allocate RX BDs.\r\n");
+        return -1;
+    }
+
+    CurBdPtr = BdSetPtr;
+
+    for (i = 0; i < FreeBds; i++) {
+        
+        p = pbuf_alloc(PBUF_RAW, MAX_PKT_LEN, PBUF_POOL);
+        if (!p) {
+            xil_printf("lwIP out of memory during RX init!\r\n");
+            // In a robust system, you'd un-allocate the BDs and fail gracefully here
+            return -1;
+        }
+
+        Xil_DCacheFlushRange((UINTPTR)p->payload, p->len);
+        XAxiDma_BdSetBufAddr(CurBdPtr, (UINTPTR)p->payload);
+        XAxiDma_BdSetLength(CurBdPtr, p->len, 0x03FFFFFF);
+        XAxiDma_BdSetCtrl(CurBdPtr, 0);
+        XAxiDma_BdSetId(CurBdPtr, (UINTPTR)p);
+
+        CurBdPtr = XAxiDma_BdRingNext(RxRingPtr, CurBdPtr);
+    }
+
+    Status = XAxiDma_BdRingToHw(RxRingPtr, FreeBds, BdSetPtr);
+    if (Status != XST_SUCCESS) {
+        xil_printf("Failed to hand RX BDs to hardware.\r\n");
+        return -1;
+    }
+
+    Status = XAxiDma_BdRingStart(RxRingPtr);
+    if (Status != XST_SUCCESS) {
+        xil_printf("Failed to start RX ring.\r\n");
+        return -1;
+    }
+
+    xil_printf("AXI DMA SG RX Ring Initialized and Armed!\r\n");
+    return 0;
 }
 
 static int setup_dma_interrupts(void) {
@@ -129,6 +200,71 @@ void dma_tx_interrupt_handler(void *CallbackRef) {
     if (IrqStatus & XAXIDMA_IRQ_ERROR_MASK) {
         xil_printf("DMA TX Error! Hardware halted.\r\n");
         // In a production system, you would trigger a DMA reset here.
+    }
+}
+
+void dma_rx_interrupt_handler(void *CallbackRef) {
+    XAxiDma_BdRing *RxRingPtr = (XAxiDma_BdRing *)CallbackRef;
+    XAxiDma_Bd *BdSetPtr;
+    XAxiDma_Bd *CurBdPtr;
+    struct pbuf *p;
+    struct pbuf *p_new;
+    u32 IrqStatus;
+    int NumBd;
+    int i;
+    u32 rx_len;
+
+    IrqStatus = XAxiDma_BdRingGetIrq(RxRingPtr);
+    XAxiDma_BdRingAckIrq(RxRingPtr, IrqStatus);
+
+    if (IrqStatus & XAXIDMA_IRQ_IOC_MASK) {
+        
+        NumBd = XAxiDma_BdRingFromHw(RxRingPtr, XAXIDMA_ALL_BDS, &BdSetPtr);
+        
+        if (NumBd > 0) {
+            CurBdPtr = BdSetPtr;
+            
+            for (i = 0; i < NumBd; i++) {
+                
+                p = (struct pbuf *)XAxiDma_BdGetId(CurBdPtr);
+                
+                if (p != NULL) {
+                    rx_len = XAxiDma_BdGetActualLength(CurBdPtr, 0x03FFFFFF);
+                    Xil_DCacheInvalidateRange((UINTPTR)p->payload, rx_len);
+
+                    p->len = rx_len;
+                    p->tot_len = rx_len;
+                    ip_addr_t dest_ip;
+
+                    inet_aton("192.168.1.125", &dest_ip); 
+                    udp_sendto(pcb, p, &dest_ip, 9001); 
+                    pbuf_free(p);
+                }
+                
+                p_new = pbuf_alloc(PBUF_RAW, MAX_PKT_LEN, PBUF_POOL);
+                if (p_new) {
+                    Xil_DCacheFlushRange((UINTPTR)p_new->payload, p_new->len);
+                    
+                    XAxiDma_BdSetBufAddr(CurBdPtr, (UINTPTR)p_new->payload);
+                    XAxiDma_BdSetLength(CurBdPtr, p_new->len, 0x03FFFFFF);
+                    XAxiDma_BdSetCtrl(CurBdPtr, 0); // Clear control bits
+                    XAxiDma_BdSetId(CurBdPtr, (UINTPTR)p_new); // Stash the new ID
+                } else {
+                    xil_printf("Warning: Out of memory, dropping RX BD slot!\r\n");
+                    XAxiDma_BdSetId(CurBdPtr, (UINTPTR)NULL);
+                }
+
+                CurBdPtr = XAxiDma_BdRingNext(RxRingPtr, CurBdPtr);
+            }
+
+            XAxiDma_BdRingToHw(RxRingPtr, NumBd, BdSetPtr);
+        }
+    }
+
+    // Optional Error Handling
+    if (IrqStatus & XAXIDMA_IRQ_ERROR_MASK) {
+        xil_printf("DMA RX Error!\r\n");
+        // Typically requires a full DMA reset here
     }
 }
 
@@ -206,7 +342,8 @@ int setup_udp_dma_bridge(void)
 
     xil_printf("Initializing UDP to DMA Bridge...\r\n");
 
-    if (init_axi_dma() != 0) return -1;
+    if (init_axi_dma_tx() != 0) return -1;
+    if (init_axi_dma_rx() != 0) return -1;
     if (setup_dma_interrupts() != 0) return -1;
 
     pcb = udp_new();
