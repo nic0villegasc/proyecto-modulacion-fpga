@@ -16,14 +16,15 @@
 #define NUM_TX_BDS 64
 #define NUM_RX_BDS 64
 
-// TODO: Update these based on your actual hardware configuration (xparameters.h)
-#define TX_INTR_ID       XPAR_FABRIC_AXIDMA_0_MM2S_INTROUT_INTR
-#define RX_INTR_ID       XPAR_FABRIC_AXIDMA_0_S2MM_INTROUT_INTR
-#define INTC_DEVICE_ID   XPAR_SCUGIC_0_DEVICE_ID
+#define MM2S_INTR_ID       XPAR_FABRIC_AXI_DMA_0_INTR
+#define S2MM_INTR_ID       XPAR_FABRIC_AXI_DMA_0_INTR_1
+#define INTC_DEVICE_ID   XPAR_XSCUGIC_0_BASEADDR
 
 static XAxiDma AxiDma;
 static u8 TxBdSpace[NUM_TX_BDS * sizeof(XAxiDma_Bd)] __attribute__((aligned(XAXIDMA_BD_MINIMUM_ALIGNMENT)));
 static u8 RxBdSpace[NUM_RX_BDS * sizeof(XAxiDma_Bd)] __attribute__((aligned(XAXIDMA_BD_MINIMUM_ALIGNMENT)));
+
+static struct udp_pcb *global_udp_pcb = NULL;
 
 static int init_axi_dma_tx(void) {
     XAxiDma_Config *Config;
@@ -31,7 +32,7 @@ static int init_axi_dma_tx(void) {
     XAxiDma_Bd BdTemplate;
     int Status;
 
-    Config = XAxiDma_LookupConfig(XPAR_AXIDMA_0_DEVICE_ID); 
+    Config = XAxiDma_LookupConfig(XPAR_AXI_DMA_0_BASEADDR); 
     if (!Config) {
         xil_printf("No DMA configuration found.\r\n");
         return -1;
@@ -120,7 +121,7 @@ static int init_axi_dma_rx(void) {
         XAxiDma_BdSetCtrl(CurBdPtr, 0);
         XAxiDma_BdSetId(CurBdPtr, (UINTPTR)p);
 
-        CurBdPtr = XAxiDma_BdRingNext(RxRingPtr, CurBdPtr);
+        CurBdPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(RxRingPtr, CurBdPtr);
     }
 
     Status = XAxiDma_BdRingToHw(RxRingPtr, FreeBds, BdSetPtr);
@@ -136,30 +137,6 @@ static int init_axi_dma_rx(void) {
     }
 
     xil_printf("AXI DMA SG RX Ring Initialized and Armed!\r\n");
-    return 0;
-}
-
-static int setup_dma_interrupts(void) {
-    int Status;
-    
-    XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(&AxiDma);
-
-    Status = XSetupInterruptSystem(
-        (void *)TxRingPtr,           // arg: Passed directly to dma_tx_interrupt_handler
-        dma_tx_interrupt_handler,    // IntrHandler: Callback function
-        TX_INTR_ID,                  // IntrId: The hardware IRQ number
-        INTC_DEVICE_ID,              // IntrParent: The Interrupt Controller ID/Base
-        0xA0                         // Priority: 0xA0 is a standard middle priority
-    );
-
-    if (Status != XST_SUCCESS) {
-        xil_printf("Failed to route DMA TX Interrupt to GIC.\r\n");
-        return -1;
-    }
-
-    XAxiDma_BdRingIntEnable(TxRingPtr, XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_ERROR_MASK); 
-
-    xil_printf("DMA TX Interrupts routed and enabled!\r\n");
     return 0;
 }
 
@@ -184,13 +161,13 @@ void dma_tx_interrupt_handler(void *CallbackRef) {
             
             for (i = 0; i < NumBd; i++) {
                 
-                p = (struct pbuf *)XAxiDma_BdGetId(CurBd);
+                p = (struct pbuf *)(UINTPTR)XAxiDma_BdGetId(CurBd);
                 
                 if (p != NULL) {
                     pbuf_free(p);
                 }
-
-                CurBd = XAxiDma_BdRingNext(TxRingPtr, CurBd);
+                
+                CurBd = (XAxiDma_Bd *)XAxiDma_BdRingNext(TxRingPtr, CurBd);
             }
 
             XAxiDma_BdRingFree(TxRingPtr, NumBd, BdSetPtr);
@@ -226,7 +203,7 @@ void dma_rx_interrupt_handler(void *CallbackRef) {
             
             for (i = 0; i < NumBd; i++) {
                 
-                p = (struct pbuf *)XAxiDma_BdGetId(CurBdPtr);
+                p = (struct pbuf *)(UINTPTR)XAxiDma_BdGetId(CurBdPtr);
                 
                 if (p != NULL) {
                     rx_len = XAxiDma_BdGetActualLength(CurBdPtr, 0x03FFFFFF);
@@ -237,7 +214,11 @@ void dma_rx_interrupt_handler(void *CallbackRef) {
                     ip_addr_t dest_ip;
 
                     inet_aton("192.168.1.125", &dest_ip); 
-                    udp_sendto(pcb, p, &dest_ip, 9001); 
+                    
+                    if (global_udp_pcb != NULL) {
+                        udp_sendto(global_udp_pcb, p, &dest_ip, 9001); 
+                    }
+                    
                     pbuf_free(p);
                 }
                 
@@ -254,7 +235,7 @@ void dma_rx_interrupt_handler(void *CallbackRef) {
                     XAxiDma_BdSetId(CurBdPtr, (UINTPTR)NULL);
                 }
 
-                CurBdPtr = XAxiDma_BdRingNext(RxRingPtr, CurBdPtr);
+                CurBdPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(RxRingPtr, CurBdPtr);
             }
 
             XAxiDma_BdRingToHw(RxRingPtr, NumBd, BdSetPtr);
@@ -266,6 +247,46 @@ void dma_rx_interrupt_handler(void *CallbackRef) {
         xil_printf("DMA RX Error!\r\n");
         // Typically requires a full DMA reset here
     }
+}
+
+static int setup_dma_interrupts(void) {
+    int Status;
+    
+    XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(&AxiDma);
+    XAxiDma_BdRing *RxRingPtr = XAxiDma_GetRxRing(&AxiDma); // Get the RX ring
+
+    // 1. Setup TX Interrupt
+    Status = XSetupInterruptSystem(
+        (void *)TxRingPtr,           
+        dma_tx_interrupt_handler,    
+        MM2S_INTR_ID,                  
+        INTC_DEVICE_ID,              
+        0xA0                         
+    );
+    if (Status != XST_SUCCESS) {
+        xil_printf("Failed to route DMA TX Interrupt to GIC.\r\n");
+        return -1;
+    }
+
+    // 2. Setup RX Interrupt
+    Status = XSetupInterruptSystem(
+        (void *)RxRingPtr,           // Pass the RX ring pointer as the callback ref
+        dma_rx_interrupt_handler,    // The specific RX callback function
+        S2MM_INTR_ID,                  // The hardware IRQ number for RX
+        INTC_DEVICE_ID,              
+        0xA0                         
+    );
+    if (Status != XST_SUCCESS) {
+        xil_printf("Failed to route DMA RX Interrupt to GIC.\r\n");
+        return -1;
+    }
+
+    // 3. Enable Interrupts on both DMA rings
+    XAxiDma_BdRingIntEnable(TxRingPtr, XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_ERROR_MASK); 
+    XAxiDma_BdRingIntEnable(RxRingPtr, XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_ERROR_MASK); 
+
+    xil_printf("DMA TX and RX Interrupts routed and enabled!\r\n");
+    return 0;
 }
 
 static void udp_receive_callback(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
@@ -323,7 +344,7 @@ static void udp_receive_callback(void *arg, struct udp_pcb *pcb, struct pbuf *p,
             XAxiDma_BdSetId(CurBdPtr, (UINTPTR)NULL);
         }
 
-        CurBdPtr = XAxiDma_BdRingNext(TxRingPtr, CurBdPtr);
+        CurBdPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(TxRingPtr, CurBdPtr);
     }
 
     Status = XAxiDma_BdRingToHw(TxRingPtr, NumBd, BdSetPtr);
@@ -337,7 +358,6 @@ static void udp_receive_callback(void *arg, struct udp_pcb *pcb, struct pbuf *p,
 
 int setup_udp_dma_bridge(void)
 {
-    struct udp_pcb *pcb;
     err_t err;
 
     xil_printf("Initializing UDP to DMA Bridge...\r\n");
@@ -346,19 +366,19 @@ int setup_udp_dma_bridge(void)
     if (init_axi_dma_rx() != 0) return -1;
     if (setup_dma_interrupts() != 0) return -1;
 
-    pcb = udp_new();
-    if (!pcb) {
+    global_udp_pcb = udp_new();
+    if (!global_udp_pcb) {
         xil_printf("Error creating PCB.\r\n");
         return -1;
     }
 
-    err = udp_bind(pcb, IP_ANY_TYPE, UDP_LISTEN_PORT);
+    err = udp_bind(global_udp_pcb, IP_ANY_TYPE, UDP_LISTEN_PORT);
     if (err != ERR_OK) {
         xil_printf("Unable to bind to port %d: err = %d\r\n", UDP_LISTEN_PORT, err);
         return -2;
     }
 
-    udp_recv(pcb, udp_receive_callback, NULL);
+    udp_recv(global_udp_pcb, udp_receive_callback, NULL);
     
     xil_printf("Bridge Initialized! UDP listening on port %d\r\n", UDP_LISTEN_PORT);
     return 0;

@@ -38,7 +38,7 @@ void init_platform();
 void cleanup_platform();
 #ifdef SDT
 void init_timer();
-void TimerCounterHandler(void *CallBackRef, u32_t TmrCtrNumber);
+void TimerCounterHandler(void *CallBackRef, long unsigned int TmrCtrNumber);
 #endif
 #ifdef __MICROBLAZE__
 void timer_callback();

@@ -214,7 +214,7 @@ void init_platform()
 }
 
 #ifdef SDT
-void TimerCounterHandler(void *CallBackRef, u32_t TmrCtrNumber)
+void TimerCounterHandler(void *CallBackRef, long unsigned int TmrCtrNumber)
 {
 	timer_callback();
 }
