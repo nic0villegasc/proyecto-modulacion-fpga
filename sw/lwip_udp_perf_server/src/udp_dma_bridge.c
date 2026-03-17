@@ -162,7 +162,14 @@ static void udp_receive_callback(void *arg, struct udp_pcb *pcb, struct pbuf *p,
         Xil_DCacheFlushRange((UINTPTR)q->payload, q->len);
 
         XAxiDma_BdSetBufAddr(CurBdPtr, (UINTPTR)q->payload);
-        XAxiDma_BdSetLength(CurBdPtr, q->len, TxRingPtr->MaxTransferLen); 
+        XAxiDma_BdSetLength(CurBdPtr, q->len, TxRingPtr->MaxTransferLen); // TODO: Verify that TxRingPtr->MaxTransferLen exists
+
+        /* Options:
+          - 0x007FFFFF is the standard 23-bit mask (8MB max transfer)
+          - 0x03FFFFFF is the standard 26-bit mask (64MB max transfer)
+          XAxiDma_BdSetLength(CurBdPtr, q->len, 0x03FFFFFF);
+          XAxiDma_BdSetLength(CurBdPtr, q->len, AxiDma.Config.MaxTransferLen);
+        */
 
         // Set Control Bits (SOF / EOF)
         CrBits = 0;
