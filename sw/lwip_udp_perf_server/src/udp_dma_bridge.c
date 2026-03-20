@@ -13,7 +13,7 @@
 #include "xparameters.h"
 
 #define UDP_LISTEN_PORT 9000
-#define MAX_PKT_LEN 1536
+#define MAX_PKT_LEN 1460
 
 #define NUM_TX_BDS 1024
 #define NUM_RX_BDS 1024
