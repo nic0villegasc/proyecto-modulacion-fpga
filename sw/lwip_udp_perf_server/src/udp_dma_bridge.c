@@ -352,7 +352,7 @@ static void udp_receive_callback(void *arg, struct udp_pcb *pcb, struct pbuf *p,
     }
 }
 
-void process_dma_rx_queue(void) {
+void process_dma_s2mm_queue(void) {
     struct pbuf *p;
     ip_addr_t dest_ip;
 
