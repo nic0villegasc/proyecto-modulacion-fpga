@@ -5,6 +5,8 @@
 #include "xil_printf.h"
 #include "xil_cache.h"
 
+#include "netif/xpqueue.h"
+
 #include "xinterrupt_wrap.h"
 
 #include "xaxidma.h"
@@ -25,6 +27,8 @@ static u8 TxBdSpace[NUM_TX_BDS * sizeof(XAxiDma_Bd)] __attribute__((aligned(XAXI
 static u8 RxBdSpace[NUM_RX_BDS * sizeof(XAxiDma_Bd)] __attribute__((aligned(XAXIDMA_BD_MINIMUM_ALIGNMENT)));
 
 static struct udp_pcb *global_udp_pcb = NULL;
+
+static pq_queue_t *dma_rx_queue = NULL;
 
 static int init_axi_dma_mm2s(void) {
     XAxiDma_Config *Config;
@@ -214,14 +218,10 @@ void s2mm_interrupt_handler(void *CallbackRef) {
                         p->len = rx_len;
                         p->tot_len = rx_len;
                         
-                        ip_addr_t dest_ip;
-                        inet_aton("192.168.1.125", &dest_ip); 
-                        
-                        if (global_udp_pcb != NULL) {
-                            udp_sendto(global_udp_pcb, p, &dest_ip, 9001); 
+                        if (pq_enqueue(dma_rx_queue, (void*)p) < 0) {
+                            // Queue is full, drop the packet
+                            pbuf_free(p);
                         }
-                        
-                        pbuf_free(p);
 
                         Xil_DCacheFlushRange((UINTPTR)p_new->payload, p_new->len);
                         XAxiDma_BdSetBufAddr(CurBdPtr, (UINTPTR)p_new->payload);
@@ -352,11 +352,37 @@ static void udp_receive_callback(void *arg, struct udp_pcb *pcb, struct pbuf *p,
     }
 }
 
+void process_dma_rx_queue(void) {
+    struct pbuf *p;
+    ip_addr_t dest_ip;
+
+    if (dma_rx_queue == NULL) return;
+
+    while (pq_qlength(dma_rx_queue) > 0) {
+        p = (struct pbuf *)pq_dequeue(dma_rx_queue);
+
+        if (p != NULL) {
+            if (global_udp_pcb != NULL) {
+                inet_aton("192.168.1.125", &dest_ip); 
+                udp_sendto(global_udp_pcb, p, &dest_ip, 9001); 
+            }
+
+            pbuf_free(p);
+        }
+    }
+}
+
 int setup_udp_dma_bridge(void)
 {
     err_t err;
 
     xil_printf("Initializing UDP to DMA Bridge...\r\n");
+
+    dma_rx_queue = pq_create_queue();
+    if (!dma_rx_queue) {
+        xil_printf("Error creating DMA RX queue.\r\n");
+        return -1;
+    }
 
     if (init_axi_dma_mm2s() != 0) return -1;
     if (init_axi_dma_s2mm() != 0) return -1;
