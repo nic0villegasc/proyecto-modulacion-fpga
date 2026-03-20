@@ -506,13 +506,13 @@ lwip220_memp_num_tcpip_msg:STRING=64
 lwip220_n_rx_coalesce:STRING=1
 
 //Number of RX Buffer Descriptors to be used in SDMA mode
-lwip220_n_rx_descriptors:STRING=1024
+lwip220_n_rx_descriptors:STRING=128
 
 //Setting for TX Interrupt coalescing.
 lwip220_n_tx_coalesce:STRING=1
 
 //Number of TX Buffer Descriptors to be used in SDMA mode
-lwip220_n_tx_descriptors:STRING=1024
+lwip220_n_tx_descriptors:STRING=128
 
 //Debug network interface layer
 lwip220_netif_debug:BOOL=OFF
@@ -530,7 +530,7 @@ lwip220_pbuf_link_hlen:STRING=16
 lwip220_pbuf_pool_bufsize:STRING=1700
 
 //Number of buffers in pbuf pool.
-lwip220_pbuf_pool_size:STRING=4096
+lwip220_pbuf_pool_size:STRING=2500
 
 //Priority of threads in socket mode
 lwip220_socket_mode_thread_prio:STRING=2

@@ -1,0 +1,7 @@
+//arch = zynq; split = false; format = BIN
+the_ROM_image:
+{
+	[bootloader]C:\Users\nicol\Documents\GitHub\proyecto-modulacion-fpga\sw\platform\export\platform\sw\boot\fsbl.elf
+	C:\Users\nicol\Documents\GitHub\proyecto-modulacion-fpga\sw\lwip_udp_perf_server\_ide\bitstream\design_1_wrapper.bit
+	C:\Users\nicol\Documents\GitHub\proyecto-modulacion-fpga\sw\lwip_udp_perf_server\build\lwip_udp_perf_server.elf
+}
