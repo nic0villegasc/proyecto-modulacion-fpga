@@ -26,7 +26,7 @@ static u8 RxBdSpace[NUM_RX_BDS * sizeof(XAxiDma_Bd)] __attribute__((aligned(XAXI
 
 static struct udp_pcb *global_udp_pcb = NULL;
 
-static int init_axi_dma_tx(void) {
+static int init_axi_dma_mm2s(void) {
     XAxiDma_Config *Config;
     XAxiDma_BdRing *TxRingPtr;
     XAxiDma_Bd BdTemplate;
@@ -74,7 +74,7 @@ static int init_axi_dma_tx(void) {
     return 0; 
 }
 
-static int init_axi_dma_rx(void) {
+static int init_axi_dma_s2mm(void) {
     XAxiDma_BdRing *RxRingPtr = XAxiDma_GetRxRing(&AxiDma); // Get the RX Ring
     XAxiDma_Bd BdTemplate;
     XAxiDma_Bd *BdSetPtr;
@@ -258,29 +258,29 @@ static int setup_dma_interrupts(void) {
     XAxiDma_BdRing *TxRingPtr = XAxiDma_GetTxRing(&AxiDma);
     XAxiDma_BdRing *RxRingPtr = XAxiDma_GetRxRing(&AxiDma); // Get the RX ring
 
-    // 1. Setup TX Interrupt
+    // 1. Setup MM2S PBUF Freeing Interrupt
     Status = XSetupInterruptSystem(
         (void *)TxRingPtr,           
         mm2s_interrupt_handler,    
         MM2S_INTR_ID,                  
         INTC_DEVICE_ID,              
-        0xA0                         
+        0xA0
     );
     if (Status != XST_SUCCESS) {
-        xil_printf("Failed to route DMA TX Interrupt to GIC.\r\n");
+        xil_printf("Failed to route DMA MM2S Interrupt to GIC.\r\n");
         return -1;
     }
 
-    // 2. Setup RX Interrupt
+    // 2. Setup S2MM Packet Reception and Sent Interrupt
     Status = XSetupInterruptSystem(
         (void *)RxRingPtr,           // Pass the RX ring pointer as the callback ref
         s2mm_interrupt_handler,    // The specific RX callback function
         S2MM_INTR_ID,                  // The hardware IRQ number for RX
-        INTC_DEVICE_ID,              
-        0xA0                         
+        INTC_DEVICE_ID,
+        0xA0
     );
     if (Status != XST_SUCCESS) {
-        xil_printf("Failed to route DMA RX Interrupt to GIC.\r\n");
+        xil_printf("Failed to route DMA S2MM Interrupt to GIC.\r\n");
         return -1;
     }
 
@@ -288,7 +288,7 @@ static int setup_dma_interrupts(void) {
     XAxiDma_BdRingIntEnable(TxRingPtr, XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_ERROR_MASK); 
     XAxiDma_BdRingIntEnable(RxRingPtr, XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_ERROR_MASK); 
 
-    xil_printf("DMA TX and RX Interrupts routed and enabled!\r\n");
+    xil_printf("DMA MM2S and S2MM Interrupts routed and enabled!\r\n");
     return 0;
 }
 
@@ -358,8 +358,8 @@ int setup_udp_dma_bridge(void)
 
     xil_printf("Initializing UDP to DMA Bridge...\r\n");
 
-    if (init_axi_dma_tx() != 0) return -1;
-    if (init_axi_dma_rx() != 0) return -1;
+    if (init_axi_dma_mm2s() != 0) return -1;
+    if (init_axi_dma_s2mm() != 0) return -1;
     if (setup_dma_interrupts() != 0) return -1;
 
     global_udp_pcb = udp_new();

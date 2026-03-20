@@ -94,14 +94,6 @@ int main(void)
 
 	/* Main Event Loop */
 	while (1) {
-		if (TcpFastTmrFlag) {
-			tcp_fasttmr();
-			TcpFastTmrFlag = 0;
-		}
-		if (TcpSlowTmrFlag) {
-			tcp_slowtmr();
-			TcpSlowTmrFlag = 0;
-		}
 		xemacif_input(netif);
 	}
 
