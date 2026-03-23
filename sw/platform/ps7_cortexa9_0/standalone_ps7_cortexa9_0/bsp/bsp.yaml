@@ -490,7 +490,7 @@ lib_config:
       name: lwip220_ip_reass_max_pbufs
       permission: read_write
       type: integer
-      value: '128'
+      value: '256'
       default: '128'
       options: []
       description: Reassembly PBUF Queue Length
@@ -645,7 +645,7 @@ lib_config:
       name: lwip220_n_rx_descriptors
       permission: read_write
       type: integer
-      value: '128'
+      value: '512'
       default: '64'
       options: []
       description: Number of RX Buffer Descriptors to be used in SDMA mode
@@ -661,7 +661,7 @@ lib_config:
       name: lwip220_n_tx_descriptors
       permission: read_write
       type: integer
-      value: '128'
+      value: '512'
       default: '64'
       options: []
       description: Number of TX Buffer Descriptors to be used in SDMA mode
@@ -715,7 +715,7 @@ lib_config:
       name: lwip220_pbuf_pool_size
       permission: read_write
       type: integer
-      value: '2500'
+      value: '3072'
       default: '256'
       options: []
       description: Number of buffers in pbuf pool.

@@ -264,7 +264,7 @@ static int setup_dma_interrupts(void) {
         mm2s_interrupt_handler,    
         MM2S_INTR_ID,                  
         INTC_DEVICE_ID,              
-        0xA0
+        0x90
     );
     if (Status != XST_SUCCESS) {
         xil_printf("Failed to route DMA MM2S Interrupt to GIC.\r\n");

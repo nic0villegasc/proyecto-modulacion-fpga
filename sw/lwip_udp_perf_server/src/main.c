@@ -96,7 +96,7 @@ int main(void)
 	while (1) {
 		xemacif_input(netif);
 
-    process_dma_s2mm_queue();
+    	process_dma_s2mm_queue();
 	}
 
 	cleanup_platform();
