@@ -110,7 +110,7 @@ static int init_axi_dma_s2mm(void) {
 
     for (i = 0; i < FreeBds; i++) {
         
-        p = pbuf_alloc(PBUF_RAW, MAX_PKT_LEN, PBUF_POOL);
+        p = pbuf_alloc(PBUF_TRANSPORT, MAX_PKT_LEN, PBUF_POOL);
         if (!p) {
             xil_printf("lwIP out of memory during RX init!\r\n");
             // In a robust system, you'd un-allocate the BDs and fail gracefully here
@@ -209,7 +209,7 @@ void s2mm_interrupt_handler(void *CallbackRef) {
                 p = (struct pbuf *)(UINTPTR)XAxiDma_BdGetId(CurBdPtr);
                 
                 if (p != NULL) {
-                    p_new = pbuf_alloc(PBUF_RAW, MAX_PKT_LEN, PBUF_POOL);
+                    p_new = pbuf_alloc(PBUF_TRANSPORT, MAX_PKT_LEN, PBUF_POOL);
                     
                     if (p_new != NULL) {
                         rx_len = XAxiDma_BdGetActualLength(CurBdPtr, 0x03FFFFFF);
