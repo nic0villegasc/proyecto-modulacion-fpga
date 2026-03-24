@@ -92,6 +92,10 @@
 
 #define CONFIG_LINKSPEED_AUTODETECT 1
 
+
+#define LWIP_STATS 1
+#define LWIP_STATS_DISPLAY 1
+#define MEMP_STATS 1
 /* #undef LWIP_STATS */
 /* #undef LWIP_STATS_DISPLAY */
 

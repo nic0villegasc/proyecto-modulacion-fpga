@@ -5,6 +5,8 @@
 #include "xil_printf.h"
 #include "xil_cache.h"
 
+#include "lwip/stats.h"
+
 #include "netif/xpqueue.h"
 
 #include "xinterrupt_wrap.h"
@@ -29,6 +31,33 @@ static u8 RxBdSpace[NUM_RX_BDS * sizeof(XAxiDma_Bd)] __attribute__((aligned(XAXI
 static struct udp_pcb *global_udp_pcb = NULL;
 
 static pq_queue_t *dma_rx_queue = NULL;
+
+volatile int pbuf_starvation_flag = 0;
+
+void print_bridge_dma_stats(void) {
+    XAxiDma_BdRing *txring = XAxiDma_GetTxRing(&AxiDma);
+    XAxiDma_BdRing *rxring = XAxiDma_GetRxRing(&AxiDma);
+
+    int tx_free = XAxiDma_BdRingGetFreeCnt(txring);
+    int rx_free = XAxiDma_BdRingGetFreeCnt(rxring);
+
+    // NUM_TX_BDS and NUM_RX_BDS are 1024
+    xil_printf("--- Bridge DMA PBUF Usage ---\r\n");
+    xil_printf("Bridge RX In-Stack: %d / 1024\r\n", 1024 - rx_free);
+    xil_printf("Bridge TX In-Transit: %d / 1024\r\n", 1024 - tx_free);
+}
+
+void print_pbuf_pool_stats(void) {
+#if LWIP_STATS && MEMP_STATS
+    xil_printf("\r\n--- PBUF POOL STATS ---\r\n");
+    xil_printf("Currently Used : %u\r\n", (unsigned int)lwip_stats.memp[MEMP_PBUF_POOL]->used);
+    xil_printf("Max Used (Peak): %u\r\n", (unsigned int)lwip_stats.memp[MEMP_PBUF_POOL]->max);
+    xil_printf("Alloc Errors   : %u\r\n", (unsigned int)lwip_stats.memp[MEMP_PBUF_POOL]->err);
+    xil_printf("-----------------------\r\n");
+#else
+    xil_printf("lwIP stats are not enabled in lwipopts.h!\r\n");
+#endif
+}
 
 static int init_axi_dma_mm2s(void) {
     XAxiDma_Config *Config;
@@ -230,6 +259,8 @@ void s2mm_interrupt_handler(void *CallbackRef) {
                         XAxiDma_BdSetId(CurBdPtr, (UINTPTR)p_new); 
 
                     } else {
+                        pbuf_starvation_flag = 1;
+
                         Xil_DCacheFlushRange((UINTPTR)p->payload, MAX_PKT_LEN);
                         XAxiDma_BdSetBufAddr(CurBdPtr, (UINTPTR)p->payload);
                         XAxiDma_BdSetLength(CurBdPtr, MAX_PKT_LEN, 0x03FFFFFF); 

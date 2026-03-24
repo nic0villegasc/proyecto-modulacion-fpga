@@ -92,11 +92,36 @@ int main(void)
         while(1);
     }
 
-	/* Main Event Loop */
-	while (1) {
-		xemacif_input(netif);
+  static int stat_counter = 0;
 
-    	process_dma_s2mm_queue();
+  while (1) {
+		if (TcpFastTmrFlag) {
+			tcp_fasttmr();
+			TcpFastTmrFlag = 0;
+		}
+		if (TcpSlowTmrFlag) {
+			tcp_slowtmr();
+			TcpSlowTmrFlag = 0;
+
+      stat_counter++;
+      if (stat_counter >= 10) { // Print every ~5 seconds
+          print_pbuf_pool_stats();
+          stat_counter = 0;
+      }
+		}
+		xemacif_input(netif);
+		process_dma_s2mm_queue();
+
+    extern volatile int pbuf_starvation_flag;
+
+    if (pbuf_starvation_flag) {
+        xil_printf("\r\n[CRITICAL] pbuf_alloc failed in RX Interrupt!\r\n");
+        print_pbuf_pool_stats();
+        print_mac_dma_stats((struct xemac_s *)netif->state);
+        print_bridge_dma_stats();
+
+        pbuf_starvation_flag = 0; // Clear the flag
+    }
 	}
 
 	cleanup_platform();

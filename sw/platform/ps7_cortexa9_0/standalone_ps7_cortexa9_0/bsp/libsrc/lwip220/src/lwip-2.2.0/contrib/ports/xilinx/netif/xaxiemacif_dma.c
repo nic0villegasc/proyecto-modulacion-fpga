@@ -1002,3 +1002,16 @@ static void xaxiemac_errorfast_handler(void)
 }
 #endif
 #endif
+
+void print_mac_dma_stats(struct xemac_s *xemac) {
+    xaxiemacif_s *xaxiemacif = (xaxiemacif_s *)(xemac->state);
+    XAxiDma_BdRing *txring = XAxiDma_GetTxRing(&xaxiemacif->axidma);
+    XAxiDma_BdRing *rxring = XAxiDma_GetRxRing(&xaxiemacif->axidma);
+
+    int tx_free = XAxiDma_BdRingGetFreeCnt(txring);
+    int rx_free = XAxiDma_BdRingGetFreeCnt(rxring);
+
+    xil_printf("--- Ethernet MAC DMA PBUF Usage ---\r\n");
+    xil_printf("MAC RX In-Stack: %d / %d\r\n", XLWIP_CONFIG_N_RX_DESC - rx_free, XLWIP_CONFIG_N_RX_DESC);
+    xil_printf("MAC TX In-Transit: %d / %d\r\n", XLWIP_CONFIG_N_TX_DESC - tx_free, XLWIP_CONFIG_N_TX_DESC);
+}
