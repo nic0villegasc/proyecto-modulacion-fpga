@@ -59,7 +59,7 @@
 #define UDP_TTL 255
 /* #undef LWIP_UDP_OPT_BLOCK_TX_TILL_COMPLETE */
 
-#define LWIP_TCP 1
+/* #undef LWIP_TCP */
 #define TCP_MSS 1460
 #define TCP_SND_BUF 8192
 #define TCP_WND 2048
@@ -92,8 +92,8 @@
 
 #define CONFIG_LINKSPEED_AUTODETECT 1
 
-/* #undef LWIP_STATS */
-/* #undef LWIP_STATS_DISPLAY */
+#define LWIP_STATS 1
+#define LWIP_STATS_DISPLAY 1
 
 /* #undef LWIP_DEBUG */
 /* #undef DBG_TYPES_ON */

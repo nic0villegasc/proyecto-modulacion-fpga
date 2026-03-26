@@ -861,7 +861,7 @@ XStatus init_dma(struct xemac_s *xemac)
 #ifdef SDT
 	XSetupInterruptSystem(&xemacpsif->emacps, &XEmacPs_IntrHandler,
 			      xemacpsif->emacps.Config.IntrId,  xemacpsif->emacps.Config.IntrParent,
-			      0x90);
+			      XINTERRUPT_DEFAULT_PRIORITY);
 #else
 	XScuGic_EnableIntr(INTC_DIST_BASE_ADDR, (u32) xtopologyp->scugic_emac_intr);
 	emac_intr_num = (u32) xtopologyp->scugic_emac_intr;

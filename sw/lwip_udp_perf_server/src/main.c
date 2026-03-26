@@ -10,6 +10,10 @@
 #include "lwip/init.h"
 #include "lwip/inet.h"
 
+#include "netif/xemacpsif.h"
+#include "xemacps.h"
+#include "xlwipconfig.h"
+
 // Include our new bridge module
 #include "udp_dma_bridge.h" 
 
@@ -26,6 +30,30 @@ extern volatile int TcpSlowTmrFlag;
 #define DEFAULT_GW_ADDRESS	"192.168.1.1"
 
 struct netif server_netif;
+
+void print_mac_ring_stats(struct netif *netif) {
+    // 1. Dig down from the lwIP netif to the Xilinx xemacpsif structure
+    struct xemac_s *xemac = (struct xemac_s *)netif->state;
+    if (!xemac) return;
+    
+    xemacpsif_s *xemacpsif = (xemacpsif_s *)(xemac->state);
+    if (!xemacpsif) return;
+
+    // 2. Grab the actual XEmacPs ring pointers
+    XEmacPs_BdRing *txring = &XEmacPs_GetTxRing(&xemacpsif->emacps);
+    XEmacPs_BdRing *rxring = &XEmacPs_GetRxRing(&xemacpsif->emacps);
+
+    // 3. Query the free counts
+    int tx_free = XEmacPs_BdRingGetFreeCnt(txring);
+    int rx_free = XEmacPs_BdRingGetFreeCnt(rxring);
+
+    // 4. Print the stats
+    xil_printf("--- MAC DMA PBUF Usage ---\r\n");
+    xil_printf("MAC RX In-Stack: %d / %d\r\n", 
+               XLWIP_CONFIG_N_RX_DESC - rx_free, XLWIP_CONFIG_N_RX_DESC);
+    xil_printf("MAC TX In-Transit: %d / %d\r\n", 
+               XLWIP_CONFIG_N_TX_DESC - tx_free, XLWIP_CONFIG_N_TX_DESC);
+}
 
 static void print_ip(char *msg, ip_addr_t *ip) {
 	print(msg);
@@ -51,6 +79,7 @@ static void assign_default_ip(ip_addr_t *ip, ip_addr_t *mask, ip_addr_t *gw) {
 
 int main(void)
 {
+	Xil_DCacheDisable();
 	struct netif *netif;
 	unsigned char mac_ethernet_address[] = { 0x00, 0x0a, 0x35, 0x00, 0x01, 0x02 };
 	netif = &server_netif;
@@ -92,11 +121,13 @@ int main(void)
         while(1);
     }
 
+	unsigned int print_counter = 0;
+	const unsigned int PRINT_THRESHOLD = 10000000;
+
   while (1) {
 		if (TcpFastTmrFlag) {
 			tcp_fasttmr();
 			TcpFastTmrFlag = 0;
-      print_pbuf_pool_stats();
 		}
 		if (TcpSlowTmrFlag) {
 			tcp_slowtmr();
@@ -104,6 +135,14 @@ int main(void)
 		}
 		xemacif_input(netif);
 		process_dma_s2mm_queue();
+
+		/*print_counter++;
+		if (print_counter >= PRINT_THRESHOLD) {
+			print_pbuf_pool_stats();
+			print_bridge_dma_stats();
+			print_mac_ring_stats(&server_netif);
+			print_counter = 0; // Reset the counter
+		}*/
 
     extern volatile int pbuf_starvation_flag;
 

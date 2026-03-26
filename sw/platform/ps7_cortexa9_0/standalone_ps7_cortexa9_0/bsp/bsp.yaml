@@ -689,7 +689,7 @@ lib_config:
       name: lwip220_pbuf_debug
       permission: read_write
       type: boolean
-      value: 'false'
+      value: 'true'
       default: 'false'
       options:
       - 'true'
@@ -731,7 +731,7 @@ lib_config:
       name: lwip220_stats
       permission: read_write
       type: boolean
-      value: 'false'
+      value: 'true'
       default: 'false'
       options:
       - 'true'
@@ -761,7 +761,7 @@ lib_config:
       name: lwip220_tcp
       permission: read_write
       type: boolean
-      value: 'true'
+      value: 'false'
       default: 'true'
       options:
       - 'true'

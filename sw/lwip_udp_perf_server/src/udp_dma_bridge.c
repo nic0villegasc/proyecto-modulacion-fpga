@@ -18,8 +18,8 @@
 #define UDP_LISTEN_PORT 9000
 #define MAX_PKT_LEN 1460
 
-#define NUM_TX_BDS 1024
-#define NUM_RX_BDS 1024
+#define NUM_TX_BDS 256
+#define NUM_RX_BDS 256
 
 #define MM2S_INTR_ID       XPAR_FABRIC_AXI_DMA_0_INTR
 #define S2MM_INTR_ID       XPAR_FABRIC_AXI_DMA_0_INTR_1
@@ -34,6 +34,8 @@ static struct udp_pcb *global_udp_pcb = NULL;
 static pq_queue_t *dma_rx_queue = NULL;
 
 volatile int pbuf_starvation_flag = 0;
+volatile u32 dma_tx_ioc_zero_bds = 0;
+volatile u32 dma_tx_err_irqs = 0;
 
 void print_bridge_dma_stats(void) {
     XAxiDma_BdRing *txring = XAxiDma_GetTxRing(&AxiDma);
@@ -42,10 +44,13 @@ void print_bridge_dma_stats(void) {
     int tx_free = XAxiDma_BdRingGetFreeCnt(txring);
     int rx_free = XAxiDma_BdRingGetFreeCnt(rxring);
 
-    // NUM_TX_BDS and NUM_RX_BDS are 1024
     xil_printf("--- Bridge DMA PBUF Usage ---\r\n");
-    xil_printf("Bridge RX In-Stack: %d / 1024\r\n", 1024 - rx_free);
-    xil_printf("Bridge TX In-Transit: %d / 1024\r\n", 1024 - tx_free);
+    xil_printf("Bridge RX In-Stack: %d / 256\r\n", 256 - rx_free);
+    xil_printf("Bridge TX In-Transit: %d / 256\r\n", 256 - tx_free);
+    
+    // Add the new debug counters here:
+    xil_printf("Bridge TX IOC 0-BDs: %u\r\n", dma_tx_ioc_zero_bds);
+    xil_printf("Bridge TX Err IRQs : %u\r\n", dma_tx_err_irqs);
 }
 
 void print_pbuf_pool_stats(void) {
@@ -206,11 +211,14 @@ void mm2s_interrupt_handler(void *CallbackRef) {
             }
 
             XAxiDma_BdRingFree(TxRingPtr, NumBd, BdSetPtr);
+        }else {
+            dma_tx_ioc_zero_bds++;
         }
     }
 
     if (IrqStatus & XAXIDMA_IRQ_ERROR_MASK) {
-        // xil_printf("DMA TX Error! Hardware halted.\r\n");
+        xil_printf("DMA TX Error! Hardware halted.\r\n");
+        dma_tx_err_irqs++;
         // In a production system, you would trigger a DMA reset here.
     }
 }

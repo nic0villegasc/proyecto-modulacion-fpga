@@ -118,13 +118,13 @@ CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO:STRING=
 CMAKE_FIND_PACKAGE_REDIRECTS_DIR:STATIC=C:/Users/nicol/Documents/GitHub/proyecto-modulacion-fpga/sw/platform/ps7_cortexa9_0/standalone_ps7_cortexa9_0/bsp/libsrc/build_configs/gen_bsp/CMakeFiles/pkgRedirects
 
 //No help, variable specified on the command line.
-CMAKE_INCLUDE_PATH:UNINITIALIZED=C:\Users\nicol\Documents\GitHub\proyecto-modulacion-fpga\sw\platform\ps7_cortexa9_0\standalone_ps7_cortexa9_0\bsp\include
+CMAKE_INCLUDE_PATH:UNINITIALIZED=C:/Users/nicol/Documents/GitHub/proyecto-modulacion-fpga/sw/platform/ps7_cortexa9_0/standalone_ps7_cortexa9_0/bsp/include
 
 //Install path prefix, prepended onto install directories.
 CMAKE_INSTALL_PREFIX:PATH=C:/Program Files (x86)/bsp
 
 //No help, variable specified on the command line.
-CMAKE_LIBRARY_PATH:UNINITIALIZED=C:\Users\nicol\Documents\GitHub\proyecto-modulacion-fpga\sw\platform\ps7_cortexa9_0\standalone_ps7_cortexa9_0\bsp\lib
+CMAKE_LIBRARY_PATH:UNINITIALIZED=C:/Users/nicol/Documents/GitHub/proyecto-modulacion-fpga/sw/platform/ps7_cortexa9_0/standalone_ps7_cortexa9_0/bsp/lib
 
 //Path to a program.
 CMAKE_LINKER:FILEPATH=C:/AMDDesignTools/2025.2/Vitis/gnu/aarch32/nt/gcc-arm-none-eabi/bin/arm-none-eabi-ld.exe
@@ -156,7 +156,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELEASE:STRING=
 CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO:STRING=
 
 //No help, variable specified on the command line.
-CMAKE_MODULE_PATH:UNINITIALIZED=C:\Users\nicol\Documents\GitHub\proyecto-modulacion-fpga\sw\platform\ps7_cortexa9_0\standalone_ps7_cortexa9_0\bsp
+CMAKE_MODULE_PATH:UNINITIALIZED=C:/Users/nicol/Documents/GitHub/proyecto-modulacion-fpga/sw/platform/ps7_cortexa9_0/standalone_ps7_cortexa9_0/bsp
 
 //Path to a program.
 CMAKE_NM:FILEPATH=C:/AMDDesignTools/2025.2/Vitis/gnu/aarch32/nt/gcc-arm-none-eabi/bin/arm-none-eabi-nm.exe
@@ -213,7 +213,7 @@ CMAKE_SKIP_INSTALL_RPATH:BOOL=NO
 CMAKE_SKIP_RPATH:BOOL=NO
 
 //Specs file path for using CMAKE toolchain files
-CMAKE_SPECS_FILE:STRING=C:\Users\nicol\Documents\GitHub\proyecto-modulacion-fpga\sw\platform\ps7_cortexa9_0\standalone_ps7_cortexa9_0\bsp\Xilinx.spec
+CMAKE_SPECS_FILE:STRING=C:/Users/nicol/Documents/GitHub/proyecto-modulacion-fpga/sw/platform/ps7_cortexa9_0/standalone_ps7_cortexa9_0/bsp/Xilinx.spec
 
 //Flags used by the linker during the creation of static libraries
 // during all build types.
@@ -239,7 +239,7 @@ CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO:STRING=
 CMAKE_STRIP:FILEPATH=C:/AMDDesignTools/2025.2/Vitis/gnu/aarch32/nt/gcc-arm-none-eabi/bin/arm-none-eabi-strip.exe
 
 //No help, variable specified on the command line.
-CMAKE_TOOLCHAIN_FILE:UNINITIALIZED=C:\Users\nicol\Documents\GitHub\proyecto-modulacion-fpga\sw\platform\ps7_cortexa9_0\standalone_ps7_cortexa9_0\bsp\cortexa9_toolchain.cmake
+CMAKE_TOOLCHAIN_FILE:UNINITIALIZED=C:/Users/nicol/Documents/GitHub/proyecto-modulacion-fpga/sw/platform/ps7_cortexa9_0/standalone_ps7_cortexa9_0/bsp/cortexa9_toolchain.cmake
 
 //If this value is on, makefiles will be generated without the
 // .SILENT directive, and all commands will be echoed to the console
@@ -521,7 +521,7 @@ lwip220_netif_debug:BOOL=OFF
 lwip220_no_sys_no_timers:BOOL=ON
 
 //Debug pbuf layer
-lwip220_pbuf_debug:BOOL=OFF
+lwip220_pbuf_debug:BOOL=ON
 
 //Number of bytes that should be allocated for a link level header.
 lwip220_pbuf_link_hlen:STRING=16
@@ -536,7 +536,7 @@ lwip220_pbuf_pool_size:STRING=3072
 lwip220_socket_mode_thread_prio:STRING=2
 
 //Turn on lwIP statistics?
-lwip220_stats:BOOL=OFF
+lwip220_stats:BOOL=ON
 
 //Turn on lwIP statistics?
 lwip220_stats_options:BOOL=ON
@@ -545,7 +545,7 @@ lwip220_stats_options:BOOL=ON
 lwip220_sys_debug:BOOL=OFF
 
 //Is TCP required ?
-lwip220_tcp:BOOL=ON
+lwip220_tcp:BOOL=OFF
 
 //Debug TCP layer
 lwip220_tcp_debug:BOOL=OFF
