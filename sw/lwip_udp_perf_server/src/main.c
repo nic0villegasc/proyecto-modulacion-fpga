@@ -92,36 +92,28 @@ int main(void)
         while(1);
     }
 
-  static int stat_counter = 0;
-
   while (1) {
 		if (TcpFastTmrFlag) {
 			tcp_fasttmr();
 			TcpFastTmrFlag = 0;
+      print_pbuf_pool_stats();
 		}
 		if (TcpSlowTmrFlag) {
 			tcp_slowtmr();
 			TcpSlowTmrFlag = 0;
-
-      stat_counter++;
-      if (stat_counter >= 10) { // Print every ~5 seconds
-          print_pbuf_pool_stats();
-          stat_counter = 0;
-      }
 		}
 		xemacif_input(netif);
 		process_dma_s2mm_queue();
 
     extern volatile int pbuf_starvation_flag;
 
-    /* Comment out for now
     if (pbuf_starvation_flag) {
         xil_printf("\r\n[CRITICAL] pbuf_alloc failed in RX Interrupt!\r\n");
         print_pbuf_pool_stats();
         print_bridge_dma_stats();
 
         pbuf_starvation_flag = 0; // Clear the flag
-    }*/
+    }
 	}
 
 	cleanup_platform();
