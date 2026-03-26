@@ -114,14 +114,14 @@ int main(void)
 
     extern volatile int pbuf_starvation_flag;
 
+    /* Comment out for now
     if (pbuf_starvation_flag) {
         xil_printf("\r\n[CRITICAL] pbuf_alloc failed in RX Interrupt!\r\n");
         print_pbuf_pool_stats();
-        print_mac_dma_stats((struct xemac_s *)netif->state);
         print_bridge_dma_stats();
 
         pbuf_starvation_flag = 0; // Clear the flag
-    }
+    }*/
 	}
 
 	cleanup_platform();

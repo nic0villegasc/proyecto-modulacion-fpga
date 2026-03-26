@@ -34,6 +34,7 @@ static pq_queue_t *dma_rx_queue = NULL;
 
 volatile int pbuf_starvation_flag = 0;
 
+/* Comment out for now
 void print_bridge_dma_stats(void) {
     XAxiDma_BdRing *txring = XAxiDma_GetTxRing(&AxiDma);
     XAxiDma_BdRing *rxring = XAxiDma_GetRxRing(&AxiDma);
@@ -58,6 +59,7 @@ void print_pbuf_pool_stats(void) {
     xil_printf("lwIP stats are not enabled in lwipopts.h!\r\n");
 #endif
 }
+*/
 
 static int init_axi_dma_mm2s(void) {
     XAxiDma_Config *Config;
