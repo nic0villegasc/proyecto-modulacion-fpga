@@ -2,6 +2,7 @@
 #include "lwip/udp.h"
 #include "lwip/pbuf.h"
 #include "lwip/inet.h"
+#include "lwip/sys.h"
 #include "xil_printf.h"
 #include "xil_cache.h"
 
