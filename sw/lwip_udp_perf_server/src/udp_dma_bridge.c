@@ -388,20 +388,38 @@ static void udp_receive_callback(void *arg, struct udp_pcb *pcb, struct pbuf *p,
 void process_dma_s2mm_queue(void) {
     struct pbuf *p;
     ip_addr_t dest_ip;
+    
+    /* Declare the variable used to store the interrupt state */
+    SYS_ARCH_DECL_PROTECT(lev);
 
     if (dma_rx_queue == NULL) return;
 
-    while (pq_qlength(dma_rx_queue) > 0) {
-        p = (struct pbuf *)pq_dequeue(dma_rx_queue);
-
-        if (p != NULL) {
-            if (global_udp_pcb != NULL) {
-                inet_aton("192.168.1.125", &dest_ip); 
-                udp_sendto(global_udp_pcb, p, &dest_ip, 9001); 
-            }
-
-            pbuf_free(p);
+    while (1) {
+        /* Disable interrupts to safely read and modify the queue */
+        SYS_ARCH_PROTECT(lev);
+        
+        if (pq_qlength(dma_rx_queue) > 0) {
+            p = (struct pbuf *)pq_dequeue(dma_rx_queue);
+        } else {
+            p = NULL;
         }
+        
+        /* Re-enable interrupts immediately after grabbing the pointer */
+        SYS_ARCH_UNPROTECT(lev);
+
+        /* If the queue was empty, break out of the processing loop */
+        if (p == NULL) {
+            break; 
+        }
+
+        /* Now we safely own 'p', and interrupts are running normally */
+        if (global_udp_pcb != NULL) {
+            inet_aton("192.168.1.125", &dest_ip); 
+            udp_sendto(global_udp_pcb, p, &dest_ip, 9001); 
+        }
+
+        /* Free the pbuf back to the pool */
+        pbuf_free(p);
     }
 }
 
