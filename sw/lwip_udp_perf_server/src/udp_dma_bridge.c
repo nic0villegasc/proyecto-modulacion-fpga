@@ -156,6 +156,9 @@ static int init_axi_dma_s2mm(void) {
         CurBdPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(RxRingPtr, CurBdPtr);
     }
 
+    /* Ensure all BD memory writes are complete before notifying HW */
+    dsb();
+
     Status = XAxiDma_BdRingToHw(RxRingPtr, FreeBds, BdSetPtr);
     if (Status != XST_SUCCESS) {
         xil_printf("Failed to hand RX BDs to hardware.\r\n");
@@ -273,8 +276,11 @@ void s2mm_interrupt_handler(void *CallbackRef) {
             }
 
             Status = XAxiDma_BdRingFree(RxRingPtr, NumBd, BdSetPtr);
-
             Status = XAxiDma_BdRingAlloc(RxRingPtr, NumBd, &BdSetPtr);
+
+            /* Ensure all BD memory writes are complete before notifying HW */
+            dsb();
+
             Status = XAxiDma_BdRingToHw(RxRingPtr, NumBd, BdSetPtr);
         }
     }
@@ -375,6 +381,9 @@ static void udp_receive_callback(void *arg, struct udp_pcb *pcb, struct pbuf *p,
         CurBdPtr = (XAxiDma_Bd *)XAxiDma_BdRingNext(TxRingPtr, CurBdPtr);
     }
 
+    /* Ensure all BD memory writes are complete before notifying HW */
+    dsb();
+
     Status = XAxiDma_BdRingToHw(TxRingPtr, NumBd, BdSetPtr);
     if (Status != XST_SUCCESS) {
         xil_printf("Failed to commit BDs to HW. Dropping packet.\r\n");
@@ -414,7 +423,8 @@ void process_dma_s2mm_queue(void) {
         /* Now we safely own 'p', and interrupts are running normally */
         if (global_udp_pcb != NULL) {
             inet_aton("192.168.1.125", &dest_ip); 
-            udp_sendto(global_udp_pcb, p, &dest_ip, 9001); 
+            udp_sendto(global_udp_pcb, p, &dest_ip, 9001);
+            // TODO: Verify if error handling to free the pbuf is needed or with the below is enough
         }
 
         /* Free the pbuf back to the pool */
