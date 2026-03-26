@@ -246,6 +246,12 @@ void s2mm_interrupt_handler(void *CallbackRef) {
                     
                     if (p_new != NULL) {
                         rx_len = XAxiDma_BdGetActualLength(CurBdPtr, 0x03FFFFFF);
+
+                        // TODO: Implement RX Scatter-Gather (Chained) Packets handling.
+                        // Currently assumes all packets fit within a single MAX_PKT_LEN BD.
+                        // If PL sends > 1460 bytes, need to check XAXIDMA_BD_STS_RXSOF_MASK 
+                        // and RXEOF_MASK, and use pbuf_cat() to link fragments.
+                        
                         Xil_DCacheInvalidateRange((UINTPTR)p->payload, rx_len);
 
                         p->len = rx_len;
